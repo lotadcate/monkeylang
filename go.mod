@@ -1,3 +1,3 @@
-module github.com/lotadcate/monkeylang
+module monkey
 
 go 1.22.5
