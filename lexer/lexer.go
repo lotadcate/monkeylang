@@ -49,7 +49,7 @@ func (l *Lexer) NextToken() token.Token {
 	l.skipWhiteSpace()
 	switch l.character {
 	case '=':
-		if l.peekChar() == '=' {
+		if l.peekChar() == '=' { // 次のトークンを覗き見
 			ch := l.character
 			l.readChar()
 			literal := string(ch) + string(l.character)
