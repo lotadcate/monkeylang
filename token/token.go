@@ -27,10 +27,23 @@ const (
 	// キーワード
 	FUNCTION = "FUNCTION" // fn
 	LET = "LET" // let
+	TRUE = "TRUE"
+	FALSE = "FALSE"
+	IF = "IF"
+	ELSE = "ELSE"
+	RETURN = "RETURN"
 
 	// 演算子
 	ASSIGN = "="
 	PLUS = "+"
+	MINUS = "-"
+	BANG = "!"
+	ASTERISK = "*"
+	SLASH = "/"
+	LT = "<"
+	GT = ">"
+	EQ = "=="
+	NOT_EQ = "!="
 
 	ILLEGAL = "ILLEGAL"
 	EOF = "EOF"
@@ -47,6 +60,11 @@ const (
 var keywords = map[string]TokenType { // 将来の追加を考えてvarにしている
 	"fn": FUNCTION,
 	"let": LET,
+	"true": TRUE,
+	"false": FALSE,
+	"if": IF,
+	"else": ELSE,
+	"return": RETURN,
 }
 
 // 引数の識別子がキーワードかどうか
@@ -57,3 +75,4 @@ func LookupIdent(ident string) TokenType {
 		return IDENT
 	}
 }
+

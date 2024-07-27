@@ -34,15 +34,50 @@ func (l *Lexer) readChar() {
 	l.nextPosition += 1
 }
 
+//先読み
+func (l *Lexer) peekChar() byte {
+	if l.nextPosition >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.nextPosition]
+	}
+}
+
 // l.characterを見てその文字に対応したトークンを返す
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 	l.skipWhiteSpace()
 	switch l.character {
 	case '=':
-		tok = newToken(token.ASSIGN, l.character)
+		if l.peekChar() == '=' {
+			ch := l.character
+			l.readChar()
+			literal := string(ch) + string(l.character)
+			tok = token.Token{ Type: token.EQ, Literal: literal }
+		} else {
+			tok = newToken(token.ASSIGN, l.character)
+		}
 	case '+':
 		tok = newToken(token.PLUS, l.character)
+	case '-':
+		tok = newToken(token.MINUS, l.character)
+	case '*':
+		tok = newToken(token.ASTERISK, l.character)
+	case '/':
+		tok = newToken(token.SLASH, l.character)
+	case '!':
+		if l.peekChar() == '=' {
+			ch := l.character
+			l.readChar()
+			literal := string(ch) + string(l.character)
+			tok = token.Token{ Type: token.NOT_EQ, Literal: literal }
+		} else {
+			tok = newToken(token.BANG, l.character)
+		}
+	case '<':
+		tok = newToken(token.LT, l.character)
+	case '>':
+		tok = newToken(token.GT, l.character)
 	case '(':
 		tok = newToken(token.LPAREN, l.character)
 	case ')':
@@ -102,8 +137,6 @@ func (l *Lexer) readNumber() string {
 func isDigit(character byte) bool {
 	return '0' <= character && character <= '9'
 }
-
-
 
 // 空白は無視
 func (l *Lexer) skipWhiteSpace() {
