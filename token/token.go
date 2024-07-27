@@ -43,3 +43,17 @@ const (
 	LBRACE = "{"
 	RBRACE = "}"
 )
+
+var keywords = map[string]TokenType { // 将来の追加を考えてvarにしている
+	"fn": FUNCTION,
+	"let": LET,
+}
+
+// 引数の識別子がキーワードかどうか
+func LookupIdent(ident string) TokenType {
+	if tok, ok := keywords[ident]; ok {
+		return tok 
+	} else {
+		return IDENT
+	}
+}
