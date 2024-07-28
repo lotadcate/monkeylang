@@ -5,6 +5,12 @@ import (
 	"monkey/ast"
 	"monkey/lexer"
 	"monkey/token"
+	"strconv"
+)
+
+type (
+	prefixParsefn func() ast.Expression // 前置構文解析関数
+	infixParseFn func(ast.Expression) ast.Expression // 中値構文解析関数
 )
 
 // トークンを見ていってASTを作成する
@@ -13,13 +19,24 @@ type Parser struct {
 	errors []string 
 	curToken token.Token // 今見ているトークン
 	peekToken token.Token // 次のトークン
+	prefixParsefns map[token.TokenType]prefixParsefn
+	infixParseFns map[token.TokenType]infixParseFn
 }
 
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{ l: l, errors: []string{} }
+	p.prefixParsefns = make(map[token.TokenType]prefixParsefn)
+	p.registerPrefix(token.IDENT, p.parseIdentifier)
+	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+
+
 	p.nextToken()
 	p.nextToken()
 	return p
+}
+
+func (p *Parser) parseIdentifier() ast.Expression {
+	return &ast.Identifier{ Token: p.curToken, Value: p.curToken.Literal }
 }
 
 func (p *Parser) Errors() []string {
@@ -57,7 +74,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -89,6 +106,37 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	return stmt
 }
 
+// 式の構文解析
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{ Token: p.curToken }
+	stmt.Expression = p.parseExpression(token.LOWEST) // 優先順位
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	prefix := p.prefixParsefns[p.curToken.Type]
+	if prefix == nil {
+		return nil
+	}
+	leftExp := prefix()
+	return leftExp
+}
+
+func (p *Parser) parseIntegerLiteral() ast.Expression {
+	lit := &ast.IntegerLiteral{ Token: p.curToken }
+	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+	lit.Value = value
+	return lit
+}
+
 func (p *Parser) curTokenIs(tt token.TokenType) bool {
 	return p.curToken.Type == tt
 }
@@ -105,4 +153,11 @@ func (p *Parser) expectPeek(tt token.TokenType) bool {
 		p.peekError(tt)
 		return false
 	}
+}
+
+func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParsefn) {
+	p.prefixParsefns[tokenType] = fn
+}
+func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
 }

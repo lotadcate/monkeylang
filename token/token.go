@@ -17,6 +17,18 @@ type Token struct {
 	Literal string
 }
 
+// 優先順位
+const (
+	_int = iota
+	LOWEST
+	EQUALS
+	LESSGREATER
+	SUM
+	PRODUCT
+	PREFIX
+	CALL
+)
+
 const (
 	// 識別子
 	IDENT = "IDENT" // five, ten, add, x, y
