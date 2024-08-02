@@ -30,6 +30,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+	p.registerPrefix(token.TRUE, p.parseBoolean)
+	p.registerPrefix(token.FALSE, p.parseBoolean)
+
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -118,6 +121,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 }
 
 func (p *Parser) parsePrefixExpression() ast.Expression {
+	defer untrace(trace("parsePrefixExpression"))
 	expression := &ast.PrefixExpression {
 		Token: p.curToken,
 		Operator: p.curToken.Literal,
@@ -128,10 +132,11 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	return expression
 }
 
-// 式の構文解析
+// 式の構文解析 ex) 1+2+3;
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{ Token: p.curToken }
-	stmt.Expression = p.parseExpression(token.LOWEST) // 優先順位
+	defer untrace(trace("parseExpressionStatement"))
+	stmt := &ast.ExpressionStatement{ Token: p.curToken } // ex) [1]
+	stmt.Expression = p.parseExpression(token.LOWEST) //　①
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
@@ -143,29 +148,31 @@ func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	p.errors = append(p.errors, msg)
 }
 
-func (p *Parser) parseExpression(precedence int) ast.Expression {
-	prefix := p.prefixParsefns[p.curToken.Type]
+func (p *Parser) parseExpression(precedence int) ast.Expression { // ②、⑤
+	defer untrace(trace("parseExpression"))
+	prefix := p.prefixParsefns[p.curToken.Type] // ex) parseIntegerLiteral、parseIntegerLiteral
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
 	}
-	leftExp := prefix()
+	leftExp := prefix() // *ast.IntegerLiteral（1）、*ast.IntegerLiteral (2)
 
 
-    for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
-        infix := p.infixParseFns[p.peekToken.Type]
+    for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() { // ex) p.nextTokenは+、p.nextTokenは+だがprecedenceも+
+        infix := p.infixParseFns[p.peekToken.Type] // ex) parseInfixExpression
         if infix == nil {
             return leftExp
         }
-        p.nextToken()
+        p.nextToken() // ex) p.curTokenは+、p.nextTokenが2
 
 		// prefixParseFnからの式を渡している
-        leftExp = infix(leftExp)
+        leftExp = infix(leftExp) // ex) parseInfixExpression(*ast.IntegerLiteral (1))
     }
-	return leftExp
+	return leftExp // ⑤（*ast.IntegerLiteral (2))
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {
+	defer untrace(trace("parseIntegerLiteral"))
 	lit := &ast.IntegerLiteral{ Token: p.curToken }
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
 	if err != nil {
@@ -213,8 +220,8 @@ var precedences = map[token.TokenType]int{
     token.ASTERISK: token.PRODUCT,
 }
 
-func (p *Parser) peekPrecedence() int {
-    if precedence, ok := precedences[p.peekToken.Type]; ok { return precedence }
+func (p *Parser) peekPrecedence() int { // ③
+    if precedence, ok := precedences[p.peekToken.Type]; ok { return precedence } // ex) SUM
     return token.LOWEST
 }
 
@@ -223,16 +230,25 @@ func (p *Parser) curPrecedence() int {
     return token.LOWEST
 }
 
-func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression { // ④
+	defer untrace(trace("parseInfixExpression"))
     expression := &ast.InfixExpression{
         Token:    p.curToken,
         Operator: p.curToken.Literal,
-        Left:     left,
+        Left:     left, // ex) *ast.Expression (1)
     }
 
-    precedence := p.curPrecedence()
-	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
+    precedence := p.curPrecedence() // ex) SUM
+	p.nextToken() // ex) p.curTokenは2、p.nextTokenが+
 
-    return expression
+	
+	expression.Right = p.parseExpression(precedence) 
+	
+
+    return expression // ⑤(Rightに*ast.IntegerLiteral (2))
+}
+
+
+func (p *Parser) parseBoolean() ast.Expression {
+	return &ast.Boolean{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
 }
